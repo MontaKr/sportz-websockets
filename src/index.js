@@ -1,4 +1,5 @@
 import express from 'express';
+import { matchRouter } from './routes/matches.js';
 
 const app = express();
 const port = 8000;
@@ -10,6 +11,8 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Hello from Express server!');
 });
+
+app.use('/matches', matchRouter)
 
 // 지정한 포트에서 실제로 서버를 가동
 // 서버가 성공적으로 가동하면 콜백함수 실행
