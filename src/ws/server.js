@@ -1,4 +1,4 @@
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 
 // WebSocket이 OPEN이 아니면 종료,
 // JSON 형식으로 변환하여 전송하는 헬퍼 함수
@@ -11,7 +11,7 @@ function sendJson(socket, payload) {
 // 모든 연결된 유저에게 데이터를 전송
 function broadcast(wss, payload) {
   for (const client of wss.clients) {
-    if (client.readyState !== WebSocket.OPEN) return;
+    if (client.readyState !== WebSocket.OPEN) continue;
 
     client.send(JSON.stringify(payload));
   }
@@ -29,10 +29,26 @@ export function attachWebSocketServer(server) {
 
   // 웹소켓이 연결되면 클라이언트에게 메시지 전송
   wss.on("connection", (socket) => {
+    socket.isAlive = true;
+
+    socket.on("pong", () => {
+      socket.isAlive = true;
+    });
+
     sendJson(socket, { type: "welcome" });
 
     socket.on("error", console.error);
   });
+
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) return ws.terminate();
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  wss.on("close", () => clearInterval(interval));
 
   function broadcastMatchCreated(match) {
     broadcast(wss, { type: "match_created", data: match });
