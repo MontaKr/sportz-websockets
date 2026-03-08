@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
+import { wsArcjet } from "../arcjet.js";
 
 // WebSocket이 OPEN이 아니면 종료,
 // JSON 형식으로 변환하여 전송하는 헬퍼 함수
@@ -28,7 +29,27 @@ export function attachWebSocketServer(server) {
   });
 
   // 웹소켓이 연결되면 클라이언트에게 메시지 전송
-  wss.on("connection", (socket) => {
+  wss.on("connection", async (socket, req) => {
+    if (wsArcjet) {
+      try {
+        const decision = await wsArcjet.protect(req);
+
+        if (decision.isDenied()) {
+          const code = decision.reason.isRateLimit() ? 1013 : 1008;
+          const reason = decision.reason.isRateLimit()
+            ? "Rate Limit Exceeded"
+            : "Access Denied";
+
+          socket.close(code, reason);
+          return;
+        }
+      } catch (e) {
+        console.error("Ws connection error", e);
+        socket.close(1011, "Server security error");
+        return;
+      }
+    }
+
     socket.isAlive = true;
 
     socket.on("pong", () => {
